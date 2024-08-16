@@ -8,7 +8,7 @@ var encodingType; 					//holds selected encoding for resulting audio (file)
 var encodeAfterRecord = true;       // when to encode
 
 // shim for AudioContext when it's not avb. 
-var AudioContext = window.AudioContext || window.webkitAudioContext;
+var AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.msAudioContext;
 var audioContext; //new audio context to help us record
 
 var encodingTypeSelect = document.getElementById("encodingTypeSelect");
@@ -16,8 +16,17 @@ var recordButton = document.getElementById("recordButton");
 var stopButton = document.getElementById("stopButton");
 
 //add events to those 2 buttons
-recordButton.addEventListener("click", startRecording);
-stopButton.addEventListener("click", stopRecording);
+if (recordButton.addEventListener) {
+    recordButton.addEventListener("click", startRecording, false);
+} else if (recordButton.attachEvent) {
+    recordButton.attachEvent("onclick", startRecording);
+}
+
+if (stopButton.addEventListener) {
+    stopButton.addEventListener("click", stopRecording, false);
+} else if (stopButton.attachEvent) {
+    stopButton.attachEvent("onclick", stopRecording);
+}
 
 function startRecording() {
 	console.log("startRecording() called");
@@ -34,73 +43,79 @@ function startRecording() {
     	https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
 	*/
 
-	navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
-		__log("getUserMedia() success, stream created, initializing WebAudioRecorder...");
+	if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+		navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+			__log("getUserMedia() success, stream created, initializing WebAudioRecorder...");
 
-		/*
-			create an audio context after getUserMedia is called
-			sampleRate might change after getUserMedia is called, like it does on macOS when recording through AirPods
-			the sampleRate defaults to the one set in your OS for your playback device
+			/*
+				create an audio context after getUserMedia is called
+				sampleRate might change after getUserMedia is called, like it does on macOS when recording through AirPods
+				the sampleRate defaults to the one set in your OS for your playback device
 
-		*/
-		audioContext = new AudioContext();
+			*/
+			audioContext = new AudioContext();
 
-		//update the format 
-		document.getElementById("formats").innerHTML="Format: 2 channel "+encodingTypeSelect.options[encodingTypeSelect.selectedIndex].value+" @ "+audioContext.sampleRate/1000+"kHz"
+			//update the format 
+			document.getElementById("formats").innerHTML="Format: 2 channel "+encodingTypeSelect.options[encodingTypeSelect.selectedIndex].value+" @ "+audioContext.sampleRate/1000+"kHz"
 
-		//assign to gumStream for later use
-		gumStream = stream;
-		
-		/* use the stream */
-		input = audioContext.createMediaStreamSource(stream);
-		
-		//stop the input from playing back through the speakers
-		//input.connect(audioContext.destination)
+			//assign to gumStream for later use
+			gumStream = stream;
+			
+			/* use the stream */
+			input = audioContext.createMediaStreamSource(stream);
+			
+			//stop the input from playing back through the speakers
+			//input.connect(audioContext.destination)
 
-		//get the encoding 
-		encodingType = encodingTypeSelect.options[encodingTypeSelect.selectedIndex].value;
-		
-		//disable the encoding selector
-		encodingTypeSelect.disabled = true;
+			//get the encoding 
+			encodingType = encodingTypeSelect.options[encodingTypeSelect.selectedIndex].value;
+			
+			//disable the encoding selector
+			encodingTypeSelect.disabled = true;
 
-		recorder = new WebAudioRecorder(input, {
-		  workerDir: "js/", // must end with slash
-		  encoding: encodingType,
-		  numChannels:2, //2 is the default, mp3 encoding supports only 2
-		  onEncoderLoading: function(recorder, encoding) {
-		    // show "loading encoder..." display
-		    __log("Loading "+encoding+" encoder...");
-		  },
-		  onEncoderLoaded: function(recorder, encoding) {
-		    // hide "loading encoder..." display
-		    __log(encoding+" encoder loaded");
-		  }
+			recorder = new WebAudioRecorder(input, {
+			  workerDir: "/", // must end with slash
+			  encoding: encodingType,
+			  numChannels:2, //2 is the default, mp3 encoding supports only 2
+			  onEncoderLoading: function(recorder, encoding) {
+				// show "loading encoder..." display
+				__log("Loading "+encoding+" encoder...");
+			  },
+			  onEncoderLoaded: function(recorder, encoding) {
+				// hide "loading encoder..." display
+				__log(encoding+" encoder loaded");
+			  }
+			});
+
+			recorder.onComplete = function(recorder, blob) { 
+				__log("Encoding complete");
+				createDownloadLink(blob,recorder.encoding);
+				encodingTypeSelect.disabled = false;
+			}
+
+			recorder.setOptions({
+			  timeLimit:120,
+			  encodeAfterRecord:encodeAfterRecord,
+			  ogg: {quality: 0.5},
+			  mp3: {bitRate: 160}
+			});
+
+			//start the recording process
+			recorder.startRecording();
+
+			 __log("Recording started");
+
+		}).catch(function(err) {
+			//enable the record button if getUSerMedia() fails
+			recordButton.disabled = false;
+			stopButton.disabled = true;
+			__log("getUserMedia() failed: " + err.message);
 		});
-
-		recorder.onComplete = function(recorder, blob) { 
-			__log("Encoding complete");
-			createDownloadLink(blob,recorder.encoding);
-			encodingTypeSelect.disabled = false;
-		}
-
-		recorder.setOptions({
-		  timeLimit:120,
-		  encodeAfterRecord:encodeAfterRecord,
-	      ogg: {quality: 0.5},
-	      mp3: {bitRate: 160}
-	    });
-
-		//start the recording process
-		recorder.startRecording();
-
-		 __log("Recording started");
-
-	}).catch(function(err) {
-	  	//enable the record button if getUSerMedia() fails
-    	recordButton.disabled = false;
-    	stopButton.disabled = true;
-
-	});
+	} else {
+		__log("getUserMedia not supported in this browser");
+		recordButton.disabled = true;
+		stopButton.disabled = true;
+	}
 
 	//disable the record button
     recordButton.disabled = true;
@@ -111,14 +126,18 @@ function stopRecording() {
 	console.log("stopRecording() called");
 	
 	//stop microphone access
-	gumStream.getAudioTracks()[0].stop();
+	if (gumStream && gumStream.getAudioTracks) {
+		gumStream.getAudioTracks()[0].stop();
+	}
 
 	//disable the stop button
 	stopButton.disabled = true;
 	recordButton.disabled = false;
 	
 	//tell the recorder to finish the recording (stop recording + encode the recorded audio)
-	recorder.finishRecording();
+	if (recorder && recorder.finishRecording) {
+		recorder.finishRecording();
+	}
 
 	__log('Recording stopped');
 }
@@ -144,12 +163,13 @@ function createDownloadLink(blob,encoding) {
 	li.appendChild(link);
 
 	//add the li element to the ordered list
-	recordingsList.appendChild(li);
+	var recordingsList = document.getElementById("recordingsList");
+	if (recordingsList) {
+		recordingsList.appendChild(li);
+	}
 }
-
-
 
 //helper function
 function __log(e, data) {
-	log.innerHTML += "\n" + e + " " + (data || '');
+	console.log(e + " " + (data || ''));
 }
