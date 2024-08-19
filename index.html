@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 	<meta charset="UTF-8">
 
-	<title>Audio Recording Demo With WebAudioRecorder.js - addpipe.com</title>
+	<title>Audio Recording Demo With WebAudioRecorder.js, adapted from addpipe.com</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 	<link rel="stylesheet" type="text/css" href="style.css">
 	<script src="https://cdn.jsdelivr.net/npm/md-gum-polyfill@1.0.0/mediaDevices-getUserMedia-polyfill.min.js"></script>
-
 </head>
+
 <body>
 	<!-- <h1>Audio Recording Demo With WebAudioRecorder.js</h1>
 	<p><small>Made by the <a href="https://addpipe.com" target="_blank">Pipe Video Recording Platform</a></small></p>
@@ -18,9 +19,9 @@
 	<div style="max-width: 28em;">
 		<!-- <p>Convert recorded audio to:</p> -->
 		<select id="encodingTypeSelect">
-		  <option value="wav">Waveform Audio (.wav)</option>
-		  <option value="mp3">MP3 (MPEG-1 Audio Layer III) (.mp3)</option>
-		  <option value="ogg">Ogg Vorbis (.ogg)</option>
+			<option value="wav">Waveform Audio (.wav)</option>
+			<option value="mp3">MP3 (MPEG-1 Audio Layer III) (.mp3)</option>
+			<option value="ogg">Ogg Vorbis (.ogg)</option>
 		</select>
 		<div id="controls">
 			<button id="recordButton">Record</button>
@@ -36,7 +37,8 @@
 
 	<!-- inserting these scripts at the end to be able to use all the elements in the DOM -->
 	<script src="WebAudioRecorder.min.js"></script>
-	<script src="app.js"></script> 
+	<script src="app.js"></script>
 
 </body>
+
 </html>
